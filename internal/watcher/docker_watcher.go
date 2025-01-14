@@ -61,11 +61,16 @@ func (w *DockerWatcher) scanContainers() {
 	for _, container := range containers {
 		labels := container.Labels
 		for label, value := range labels {
-			// log.Printf("Label: %+v, Value: %+v", label, value)
-			if isTraefikRouterRule(label) || isHomerLabel(label) {
+			if isTraefikRouterRule(label) {
+				w.processTraefikHostEvent(DockerEvent{
+					Label: label,
+					Value: value,
+				})
+			}
+			if isHomerLabel(label) {
 				w.processEvent(DockerEvent{
-					label: label,
-					value: value,
+					Label: label,
+					Value: value,
 				})
 			}
 		}
@@ -83,9 +88,36 @@ func isHomerLabel(labelName string) bool {
 }	
 
 func (w *DockerWatcher) processEvent(dockerEvent DockerEvent) {
-	log.Printf("Event received: %+v", dockerEvent)
-
 	for _, handler := range w.handlers {
 		handler.HandleEvent(dockerEvent)
 	}
-} 
+}
+
+func (w *DockerWatcher) processTraefikHostEvent(dockerEvent DockerEvent) {
+	label := convertTraefikLabelHost(dockerEvent.Label)
+	value := convertTraefikValueHost(dockerEvent.Value)
+	for _, handler := range w.handlers {
+		handler.HandleEvent(DockerEvent{
+			Label: label,
+			Value: value,
+		})
+	}
+}
+
+func convertTraefikLabelHost(labelName string) string {
+	re := regexp.MustCompile(`^traefik\.http\.routers\.([^.]+)\.rule$`)
+	matches := re.FindStringSubmatch(labelName)
+	if len(matches) > 1 {
+		return "homer.services." + matches[1] + ".url"
+	}
+	return ""
+}
+
+func convertTraefikValueHost(value string) string {
+	re := regexp.MustCompile(`Host\(\"([^"]+)\"\)`)
+	matches := re.FindStringSubmatch(value)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
+}

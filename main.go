@@ -5,6 +5,7 @@ import (
     "log"
     "github.com/docker/docker/client"
     "homer-traefik/internal/watcher"
+    "homer-traefik/internal/homer"
 )
 
 func main() {
@@ -16,8 +17,13 @@ func main() {
         log.Fatalf("Erreur lors de la création du client Docker: %v", err)
     }
     
-    // Démarrage du watcher
-		log.Println("Watcher started")
+    // Création du watcher
     watcher := watcher.NewDockerWatcher(dockerClient)
+    
+    // Création et ajout du handler Homer
+    homerHandler := homer.NewConfigHandler()
+    watcher.AddHandler(homerHandler)
+    
+    log.Println("Watcher started")
     watcher.Start(ctx)
 } 

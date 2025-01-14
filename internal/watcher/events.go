@@ -1,8 +1,8 @@
 package watcher
 
 type DockerEvent struct {
-	label   string
-	value   string
+	Label   string
+	Value   string
 }
 
 type EventHandler interface {
