@@ -92,7 +92,7 @@ func (h *ConfigHandler) updateConfig(event watcher.DockerEvent) {
 			item.Icon = event.Value
 		case "tag":
 			item.Tag = event.Value
-		case "services":
+		case "service":
 			item.Service = event.Value
 		}
 
@@ -119,7 +119,6 @@ func (h *ConfigHandler) updateServices() {
 	for serviceName, items := range serviceItems {
 		h.config.Services = append(h.config.Services, Service{
 			Name:  serviceName,
-			Icon:  "fas fa-rocket", // Default icon
 			Items: items,
 		})
 	}

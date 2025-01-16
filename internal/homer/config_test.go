@@ -40,10 +40,16 @@ func TestConfigHandler(t *testing.T) {
 	content, err := os.ReadFile(tmpFile)
 	require.NoError(t, err)
 
+	// Check each field individually for better error messages
+	require.Contains(t, string(content), "title: My Dashboard")
+	require.Contains(t, string(content), "name: Test Service")
+	require.Contains(t, string(content), "url: http://test.com")
+	require.Contains(t, string(content), "service: apps")
+
+	// Then check the complete content
 	expectedContent := `title: My Dashboard
 services:
   - name: apps
-    icon: fas fa-rocket
     items:
       - name: Test Service
         url: http://test.com
