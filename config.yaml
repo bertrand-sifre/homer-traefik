@@ -1,7 +1,0 @@
-title: Demo dashboard
-services:
-  - name: kakattekoi
-    icon: fas fa-rocket
-    items:
-      - name: Redis
-        service: kakattekoi
