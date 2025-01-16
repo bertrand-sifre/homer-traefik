@@ -6,7 +6,10 @@ import (
 	"regexp"
 
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/events"
 )
 
 type DockerWatcher struct {
@@ -28,27 +31,43 @@ func (w *DockerWatcher) AddHandler(handler EventHandler) {
 func (w *DockerWatcher) Start(ctx context.Context) {
 	w.scanContainers()
 
-	// filterArgs := filters.NewArgs()
-	// filterArgs.Add("type", "container")
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("type", "container")
 
-	// eventOptions := types.EventsOptions{
-	// 	Filters: filterArgs,
-	// }
+	eventOptions := types.EventsOptions{
+		Filters: filterArgs,
+	}
 
-	// events, errs := w.client.Events(ctx, eventOptions)
+	dockerEvents, errs := w.client.Events(ctx, eventOptions)
 
-	// for {
-	// 	select {
-	// 	case event := <-events:
-	// 		w.processEvent(event)
-	// 	case err := <-errs:
-	// 		if err != nil {
-	// 			log.Printf("Erreur lors de la réception des événements: %v", err)
-	// 		}
-	// 	case <-ctx.Done():
-	// 		return
-	// 	}
-	// }
+	for {
+		select {
+		case event := <-dockerEvents:
+			if event.Type == events.ContainerEventType {
+				labels := event.Actor.Attributes
+				for label, value := range labels {
+					if isTraefikRouterRule(label) {
+						w.processTraefikHostEvent(DockerEvent{
+							Label: label,
+							Value: value,
+						})
+					}
+					if isHomerLabel(label) {
+						w.processEvent(DockerEvent{
+							Label: label,
+							Value: value,
+						})
+					}
+				}
+			}
+		case err := <-errs:
+			if err != nil {
+				log.Printf("Erreur lors de la réception des événements: %v", err)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func (w *DockerWatcher) scanContainers() {
