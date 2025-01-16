@@ -40,7 +40,6 @@ type ConfigHandler struct {
 	services  map[string]Service
 	items     map[string]Item
 	filePath  string
-
 }
 
 func NewConfigHandler() *ConfigHandler {
@@ -64,7 +63,7 @@ func (h *ConfigHandler) updateConfig(event watcher.DockerEvent) {
 	if event.Label == "homer.title" {
 		h.config.Title = event.Value
 	}
-	// prefix homer.items.
+	// Check if label starts with homer.items.
 	if strings.HasPrefix(event.Label, "homer.items.") {
 		re := regexp.MustCompile(`^homer\.items\.(.*)\.(.*)`)
 		matches := re.FindStringSubmatch(event.Label)
@@ -75,13 +74,13 @@ func (h *ConfigHandler) updateConfig(event watcher.DockerEvent) {
 		itemId := matches[1]
 		itemField := matches[2]
 
-		// Récupérer l'item existant ou créer un nouveau
+		// Get existing item or create a new one
 		item, exists := h.items[itemId]
 		if !exists {
 			item = Item{}
 		}
 
-		// Mettre à jour le champ approprié
+		// Update the appropriate field
 		switch itemField {
 		case "name":
 			item.Name = event.Value
@@ -93,21 +92,21 @@ func (h *ConfigHandler) updateConfig(event watcher.DockerEvent) {
 			item.Icon = event.Value
 		case "tag":
 			item.Tag = event.Value
-		case "service":
+		case "services":
 			item.Service = event.Value
 		}
 
-		// Remettre l'item mis à jour dans la map
+		// Put the updated item back in the map
 		h.items[itemId] = item
 
-		// Mettre à jour la configuration
+		// Update the configuration
 		h.updateServices()
 	}
 }
 
-// Nouvelle méthode pour mettre à jour les services à partir des items
+// Update services from items
 func (h *ConfigHandler) updateServices() {
-	// Regrouper les items par service
+	// Group items by service
 	serviceItems := make(map[string][]Item)
 	for _, item := range h.items {
 		if item.Service != "" {
@@ -115,12 +114,12 @@ func (h *ConfigHandler) updateServices() {
 		}
 	}
 
-	// Mettre à jour la liste des services dans la config
+	// Update the services list in the config
 	h.config.Services = make([]Service, 0)
 	for serviceName, items := range serviceItems {
 		h.config.Services = append(h.config.Services, Service{
 			Name:  serviceName,
-			Icon:  "fas fa-rocket", // Icon par défaut
+			Icon:  "fas fa-rocket", // Default icon
 			Items: items,
 		})
 	}

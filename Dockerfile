@@ -1,31 +1,31 @@
-# Étape de build
+# Build stage
 FROM golang:1.23.4-alpine3.21 AS builder
 
 WORKDIR /app
 
-# Copier les fichiers de dépendances
+# Copy dependency files
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copier le code source
+# Copy source code
 COPY . .
 
-# Compiler l'application
+# Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o homer-traefik
 
-# Étape finale avec une image minimale
+# Final stage with minimal image
 FROM alpine:3.21
 
 WORKDIR /app
 
-# Copier l'exécutable depuis l'étape de build
+# Copy binary from builder stage
 COPY --from=builder /app/homer-traefik .
 
-# Créer un volume pour la configuration Homer
+# Create volume for Homer configuration
 VOLUME /app/config
 
-# Définir le répertoire de travail comme répertoire de configuration
+# Set working directory to configuration directory
 WORKDIR /app/config
 
-# Exécuter l'application
+# Run the application
 CMD ["/app/homer-traefik"]

@@ -8,21 +8,21 @@ import (
 )
 
 func TestConfigHandler(t *testing.T) {
-	// Créer un fichier temporaire pour les tests
+	// Create a temporary file for testing
 	tmpFile := "test_config.yaml"
 	defer os.Remove(tmpFile)
 
-	// Créer une nouvelle instance de ConfigHandler
+	// Create a new instance of ConfigHandler
 	handler := NewConfigHandler()
 	handler.filePath = tmpFile
 
-	// Affectation du titre
+	// Set the title
 	handler.HandleEvent(watcher.DockerEvent{
 		Label: "homer.title",
-		Value: "Mon Dashboard",
+		Value: "My Dashboard",
 	})
 
-	// Ajout d'un item dans le service apps
+	// Add an item to the apps service
 	handler.HandleEvent(watcher.DockerEvent{
 		Label: "homer.items.test1.name",
 		Value: "Test Service",
@@ -36,11 +36,11 @@ func TestConfigHandler(t *testing.T) {
 		Value: "apps",
 	})
 
-	// Lire le contenu du fichier
+	// Read the file content
 	content, err := os.ReadFile(tmpFile)
 	require.NoError(t, err)
 
-	expectedContent := `title: Mon Dashboard
+	expectedContent := `title: My Dashboard
 services:
   - name: apps
     icon: fas fa-rocket

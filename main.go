@@ -11,16 +11,16 @@ import (
 func main() {
     ctx := context.Background()
     
-    // Création du client Docker
+    // Create Docker client
     dockerClient, err := client.NewClientWithOpts(client.FromEnv)
     if err != nil {
-        log.Fatalf("Erreur lors de la création du client Docker: %v", err)
+        log.Fatalf("Error creating Docker client: %v", err)
     }
     
-    // Création du watcher
+    // Create watcher
     watcher := watcher.NewDockerWatcher(dockerClient)
     
-    // Création et ajout du handler Homer
+    // Create and add Homer handler
     homerHandler := homer.NewConfigHandler()
     watcher.AddHandler(homerHandler)
     
