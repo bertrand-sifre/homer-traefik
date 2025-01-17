@@ -135,6 +135,7 @@ func (w *DockerWatcher) processEvent(dockerEvent DockerEvent) {
 func (w *DockerWatcher) processTraefikHostEvent(dockerEvent DockerEvent) {
 	label := convertTraefikLabelHost(dockerEvent.Label)
 	value := convertTraefikValueHost(dockerEvent.Value)
+	log.Printf("Traefik host event: %s -> %s", label, value)
 	for _, handler := range w.handlers {
 		handler.HandleEvent(DockerEvent{
 			Label: label,

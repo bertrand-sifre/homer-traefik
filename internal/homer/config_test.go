@@ -19,7 +19,7 @@ func TestConfigHandler(t *testing.T) {
 	// Set the title
 	handler.HandleEvent(watcher.DockerEvent{
 		Label: "homer.title",
-		Value: "My Dashboard",
+		Value: "MY best dashboard <3",
 	})
 
 	// Add an item to the apps service
@@ -41,19 +41,17 @@ func TestConfigHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check each field individually for better error messages
-	require.Contains(t, string(content), "title: My Dashboard")
+	require.Contains(t, string(content), "title: MY best dashboard <3")
 	require.Contains(t, string(content), "name: Test Service")
 	require.Contains(t, string(content), "url: http://test.com")
-	require.Contains(t, string(content), "service: apps")
 
 	// Then check the complete content
-	expectedContent := `title: My Dashboard
+	expectedContent := `title: MY best dashboard <3
 services:
   - name: apps
     items:
       - name: Test Service
         url: http://test.com
-        service: apps
 `
 	require.Equal(t, expectedContent, string(content))
 } 

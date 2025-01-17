@@ -32,7 +32,7 @@ type Item struct {
 	Tag      string `yaml:"tag,omitempty"`
 	Url      string `yaml:"url,omitempty"`
 	Icon     string `yaml:"icon,omitempty"`
-	Service  string
+	Service  string `yaml:"-"` //ignore this field
 }
 
 type ConfigHandler struct {
