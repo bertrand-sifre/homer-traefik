@@ -148,7 +148,7 @@ func convertTraefikLabelHost(labelName string) string {
 	re := regexp.MustCompile(`^traefik\.http\.routers\.([^.]+)\.rule$`)
 	matches := re.FindStringSubmatch(labelName)
 	if len(matches) > 1 {
-		return "homer.services." + matches[1] + ".url"
+		return "homer.items." + matches[1] + ".url"
 	}
 	return ""
 }
