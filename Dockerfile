@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.23.4-alpine3.21 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.23.4-alpine3.21 AS builder
 
 WORKDIR /app
 
@@ -11,10 +11,17 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o homer-traefik
+ARG TARGETPLATFORM
+RUN case "${TARGETPLATFORM}" in \
+      "linux/amd64") GOARCH=amd64 ;; \
+      "linux/arm64") GOARCH=arm64 ;; \
+      "linux/arm/v7") GOARCH=arm ;; \
+      *) GOARCH=amd64 ;; \
+    esac && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -o homer-traefik
 
 # Final stage with minimal image
-FROM alpine:3.21
+FROM --platform=$TARGETPLATFORM alpine:3.21
 
 WORKDIR /app
 
