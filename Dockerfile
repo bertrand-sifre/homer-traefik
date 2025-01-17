@@ -15,10 +15,10 @@ ARG TARGETPLATFORM
 RUN case "${TARGETPLATFORM}" in \
       "linux/amd64") GOARCH=amd64 ;; \
       "linux/arm64") GOARCH=arm64 ;; \
-      "linux/arm/v7") GOARCH=arm ;; \
-      *) GOARCH=amd64 ;; \
+      "linux/arm/v7") GOARCH=arm GOARM=7 ;; \
+      *) echo "Unsupported platform: ${TARGETPLATFORM}" && exit 1 ;; \
     esac && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -o homer-traefik
+    CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GOARM=${GOARM:-} go build -o homer-traefik
 
 # Final stage with minimal image
 FROM --platform=$TARGETPLATFORM alpine:3.21

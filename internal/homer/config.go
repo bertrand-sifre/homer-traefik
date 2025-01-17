@@ -50,7 +50,7 @@ func NewConfigHandler() *ConfigHandler {
 		},
 		services: make(map[string]Service),
 		items:    make(map[string]Item),
-		filePath: "config.yaml",
+		filePath: "config.yml",
 	}
 }
 
