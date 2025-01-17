@@ -29,7 +29,7 @@ func (w *DockerWatcher) AddHandler(handler EventHandler) {
 }
 
 func (w *DockerWatcher) Start(ctx context.Context) {
-	w.scanContainers()
+	w.firstScan()
 
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("type", "container")
@@ -70,7 +70,8 @@ func (w *DockerWatcher) Start(ctx context.Context) {
 	}
 }
 
-func (w *DockerWatcher) scanContainers() {
+func (w *DockerWatcher) firstScan() {
+	// Scan standalone containers
 	containers, err := w.client.ContainerList(context.Background(), container.ListOptions{})
 	if err != nil {
 		log.Printf("Error while scanning containers: %v", err)
@@ -79,19 +80,38 @@ func (w *DockerWatcher) scanContainers() {
 	log.Printf("Containers found: %d", len(containers))
 	for _, container := range containers {
 		labels := container.Labels
-		for label, value := range labels {
-			if isTraefikRouterRule(label) {
-				w.processTraefikHostEvent(DockerEvent{
-					Label: label,
-					Value: value,
-				})
-			}
-			if isHomerLabel(label) {
-				w.processEvent(DockerEvent{
-					Label: label,
-					Value: value,
-				})
-			}
+		w.processLabels(labels)
+	}
+
+	// Scan Swarm services
+	services, err := w.client.ServiceList(context.Background(), types.ServiceListOptions{})
+	if err != nil {
+		log.Printf("Error while scanning services: %v", err)
+		return
+	}
+	log.Printf("Services found: %d", len(services))
+	for _, service := range services {
+		labels := service.Spec.Labels
+		w.processLabels(labels)
+	}
+}
+
+// Helper function to process labels
+func (w *DockerWatcher) processLabels(labels map[string]string) {
+	for label, value := range labels {
+		if isTraefikRouterRule(label) {
+			log.Printf("Traefik router rule: %s", label)
+			w.processTraefikHostEvent(DockerEvent{
+				Label: label,
+				Value: value,
+			})
+		}
+		if isHomerLabel(label) {
+			log.Printf("Homer label: %s", label)
+			w.processEvent(DockerEvent{
+				Label: label,
+				Value: value,
+			})
 		}
 	}
 }
