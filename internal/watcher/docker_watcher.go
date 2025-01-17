@@ -154,10 +154,20 @@ func convertTraefikLabelHost(labelName string) string {
 }
 
 func convertTraefikValueHost(value string) string {
+	// Try first format: Host("example.com")
 	re := regexp.MustCompile(`Host\(\"([^"]+)\"\)`)
 	matches := re.FindStringSubmatch(value)
 	if len(matches) > 1 {
-		return matches[1]
+		return "https://" + matches[1]
 	}
+
+	// Try second format: Host(`example.com`)
+	re = regexp.MustCompile(`Host\(\x60([^\x60]+)\x60\)`)
+	matches = re.FindStringSubmatch(value)
+	if len(matches) > 1 {
+		return "https://" + matches[1]
+	}
+
+	log.Printf("No host found in value: %s", value)
 	return ""
 }
