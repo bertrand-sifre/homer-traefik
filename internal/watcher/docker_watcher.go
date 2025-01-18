@@ -34,7 +34,10 @@ func (w *DockerWatcher) Start(ctx context.Context) {
 
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("type", "container")
-	filterArgs.Add("type", "service")  // Add service events
+	filterArgs.Add("type", "service")
+	// Add specific event filters for containers
+	filterArgs.Add("event", "start")
+	filterArgs.Add("event", "stop")
 
 	eventOptions := types.EventsOptions{
 		Filters: filterArgs,
@@ -45,13 +48,23 @@ func (w *DockerWatcher) Start(ctx context.Context) {
 	for {
 		select {
 		case event := <-dockerEvents:
-			// Rescan everything on any container or service event
-			if event.Type == events.ContainerEventType || event.Type == events.ServiceEventType {
+			// Process container events only for start/stop
+			if event.Type == events.ContainerEventType {
+				if event.Action == "start" || event.Action == "stop" {
+					name := event.Actor.Attributes["name"]
+					if name == "" {
+						name = event.Actor.ID[:12]
+					}
+					log.Printf("Container event received: action=%s name=%s", event.Action, name)
+					w.scanEverything()
+				}
+			} else if event.Type == events.ServiceEventType {
+				// Process all service events
 				name := event.Actor.Attributes["name"]
 				if name == "" {
-					name = event.Actor.ID[:12] // Use short ID if name not available
+					name = event.Actor.ID[:12]
 				}
-				log.Printf("Docker event received: type=%s action=%s name=%s", event.Type, event.Action, name)
+				log.Printf("Service event received: action=%s name=%s", event.Action, name)
 				w.scanEverything()
 			}
 		case err := <-errs:
