@@ -47,8 +47,11 @@ func (w *DockerWatcher) Start(ctx context.Context) {
 		case event := <-dockerEvents:
 			// Rescan everything on any container or service event
 			if event.Type == events.ContainerEventType || event.Type == events.ServiceEventType {
-				log.Printf("Event received: type=%s action=%s", event.Type, event.Action)
-				// Small delay to let Docker update its state
+				name := event.Actor.Attributes["name"]
+				if name == "" {
+					name = event.Actor.ID[:12] // Use short ID if name not available
+				}
+				log.Printf("Docker event received: type=%s action=%s name=%s", event.Type, event.Action, name)
 				w.scanEverything()
 			}
 		case err := <-errs:
