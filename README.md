@@ -1,6 +1,10 @@
 # Homer Traefik Integration
 
-A service that automatically synchronizes your Docker containers with your Homer dashboard using Traefik labels.
+⚠️ **Important Notice**
+
+This project was created as an experiment to test [Cursor](https://cursor.sh/), an AI-powered IDE. 100% of the code (readme included) was generated through interactions with Cursor's AI assistant. I have no prior experience with Go programming, and this project serves as a demonstration of AI-assisted development capabilities.
+
+Use this code at your own risk, as it may not follow Go best practices or contain optimal implementations.
 
 ## Description
 
