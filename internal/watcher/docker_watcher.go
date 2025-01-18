@@ -29,10 +29,12 @@ func (w *DockerWatcher) AddHandler(handler EventHandler) {
 }
 
 func (w *DockerWatcher) Start(ctx context.Context) {
-	w.firstScan()
+	// Initial scan
+	w.scanEverything()
 
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("type", "container")
+	filterArgs.Add("type", "service")  // Add service events
 
 	eventOptions := types.EventsOptions{
 		Filters: filterArgs,
@@ -43,26 +45,15 @@ func (w *DockerWatcher) Start(ctx context.Context) {
 	for {
 		select {
 		case event := <-dockerEvents:
-			if event.Type == events.ContainerEventType {
-				labels := event.Actor.Attributes
-				for label, value := range labels {
-					if isTraefikRouterRule(label) {
-						w.processTraefikHostEvent(DockerEvent{
-							Label: label,
-							Value: value,
-						})
-					}
-					if isHomerLabel(label) {
-						w.processEvent(DockerEvent{
-							Label: label,
-							Value: value,
-						})
-					}
-				}
+			// Rescan everything on any container or service event
+			if event.Type == events.ContainerEventType || event.Type == events.ServiceEventType {
+				log.Printf("Event received: type=%s action=%s", event.Type, event.Action)
+				// Small delay to let Docker update its state
+				w.scanEverything()
 			}
 		case err := <-errs:
 			if err != nil {
-				log.Printf("Erreur lors de la réception des événements: %v", err)
+				log.Printf("Error receiving events: %v", err)
 			}
 		case <-ctx.Done():
 			return
@@ -70,7 +61,12 @@ func (w *DockerWatcher) Start(ctx context.Context) {
 	}
 }
 
-func (w *DockerWatcher) firstScan() {
+func (w *DockerWatcher) scanEverything() {
+	// Reset all handlers
+	for _, handler := range w.handlers {
+		handler.Reset()
+	}
+
 	// Scan standalone containers
 	containers, err := w.client.ContainerList(context.Background(), container.ListOptions{})
 	if err != nil {

@@ -7,4 +7,5 @@ type DockerEvent struct {
 
 type EventHandler interface {
 	HandleEvent(event DockerEvent)
+	Reset()
 } 

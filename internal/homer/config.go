@@ -148,3 +148,13 @@ func (h *ConfigHandler) writeConfig() {
 		return
 	}
 }
+
+func (h *ConfigHandler) Reset() {
+	h.config = &Config{
+		Title:    "Demo dashboard",
+		Services: make([]Service, 0),
+	}
+	h.services = make(map[string]Service)
+	h.items = make(map[string]Item)
+	h.writeConfig()  // Write empty config to file
+}
