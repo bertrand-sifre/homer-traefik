@@ -5,8 +5,9 @@ import (
 	"os"
 	"gopkg.in/yaml.v3"
 	"homer-traefik/internal/watcher"
-	"strings"
 	"regexp"
+	"sort"
+	"strings"
 )
 
 type Config struct {
@@ -74,17 +75,6 @@ func (h *ConfigHandler) updateConfig(event watcher.DockerEvent) {
 		itemId := matches[1]
 		itemField := matches[2]
 
-		// Special handling for URL field from Traefik routers
-		// If we're setting a URL and the itemId doesn't match an existing item with a service,
-		// try to find a matching item by checking if itemId contains another item's name
-		if itemField == "url" {
-			matchedId := h.findMatchingItem(itemId)
-			if matchedId != "" {
-				itemId = matchedId
-				log.Printf("Matched router '%s' to item '%s'", matches[1], itemId)
-			}
-		}
-
 		// Get existing item or create a new one
 		item, exists := h.items[itemId]
 		if !exists {
@@ -115,97 +105,65 @@ func (h *ConfigHandler) updateConfig(event watcher.DockerEvent) {
 	}
 }
 
-// findMatchingItem tries to find an existing item that matches the router name
-// For example, if routerName is "gluetun-torrent", it will find "torrent"
-func (h *ConfigHandler) findMatchingItem(routerName string) string {
-	// First check if there's an exact match
-	if item, exists := h.items[routerName]; exists && item.Service != "" {
-		return routerName
-	}
-
-	// Try to find a partial match
-	// Check if routerName contains any existing item name or vice versa
-	for existingId, item := range h.items {
-		// Skip if the existing item doesn't have a service (it's probably from Traefik)
+// Update services from items
+//
+// Les labels arrivent un par un, dans l'ordre (aléatoire) d'itération des maps de labels
+// Docker : aucune décision ne peut donc être prise à l'arrivée d'un label. h.items garde
+// chaque entrée sous son propre id, et la résolution des URLs se refait entièrement ici,
+// sans rien modifier dans h.items.
+func (h *ConfigHandler) updateServices() {
+	serviceItems := make(map[string][]Item)
+	for id, item := range h.items {
 		if item.Service == "" {
 			continue
 		}
-
-		// Check if router name contains the item name (e.g., "gluetun-torrent" contains "torrent")
-		if strings.Contains(routerName, existingId) {
-			return existingId
+		if item.Url == "" {
+			item.Url = h.routerUrlFor(id)
 		}
-
-		// Check if item name contains the router name (less common but possible)
-		if strings.Contains(existingId, routerName) {
-			return existingId
-		}
+		serviceItems[item.Service] = append(serviceItems[item.Service], item)
 	}
 
-	return ""
-}
-
-// Update services from items
-func (h *ConfigHandler) updateServices() {
-	// First, merge items where a router URL exists without a service
-	// with items that have a service but no URL
-	h.mergeMatchingItems()
-
-	// Group items by service
-	serviceItems := make(map[string][]Item)
-	for _, item := range h.items {
-		if item.Service != "" {
-			serviceItems[item.Service] = append(serviceItems[item.Service], item)
-		}
+	// Ordre stable : sans tri, chaque réécriture du fichier mélangeait services et items.
+	names := make([]string, 0, len(serviceItems))
+	for name := range serviceItems {
+		names = append(names, name)
 	}
+	sort.Strings(names)
 
-	// Update the services list in the config
-	h.config.Services = make([]Service, 0)
-	for serviceName, items := range serviceItems {
-		h.config.Services = append(h.config.Services, Service{
-			Name:  serviceName,
-			Items: items,
-		})
+	h.config.Services = make([]Service, 0, len(names))
+	for _, name := range names {
+		items := serviceItems[name]
+		sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
+		h.config.Services = append(h.config.Services, Service{Name: name, Items: items})
 	}
 }
 
-// mergeMatchingItems merges items where router names don't match item names
-// For example, merges "gluetun-torrent" (has URL) with "torrent" (has name/service)
-func (h *ConfigHandler) mergeMatchingItems() {
-	// Find items that have a URL but no service (these are from Traefik routers)
-	routerItems := make(map[string]Item)
-	for id, item := range h.items {
-		if item.Url != "" && item.Service == "" {
-			routerItems[id] = item
+// routerUrlFor cherche l'URL d'un item dont aucun router Traefik ne porte le nom, parmi
+// les routers orphelins (URL sans item Homer du même nom) : « gluetun-torrent » pour
+// l'item « torrent ».
+//
+// N'est appelé que pour un item **sans URL** : un item qui a son propre router
+// (« trackarr ») ne reçoit jamais celle d'un voisin qui le contient
+// (« trackarr-discovery »), ni « sonarr » celle de « sonarr-api ». Parmi plusieurs
+// candidats, le nom le plus court l'emporte, puis l'ordre alphabétique : le résultat ne
+// dépend pas de l'ordre d'arrivée des labels.
+func (h *ConfigHandler) routerUrlFor(itemId string) string {
+	best := ""
+	for routerId, router := range h.items {
+		if routerId == itemId || router.Service != "" || router.Url == "" {
+			continue
+		}
+		if !strings.Contains(routerId, itemId) && !strings.Contains(itemId, routerId) {
+			continue
+		}
+		if best == "" || len(routerId) < len(best) || (len(routerId) == len(best) && routerId < best) {
+			best = routerId
 		}
 	}
-
-	// For each router item, try to find a matching item with a service
-	for routerId, routerItem := range routerItems {
-		// Try to find a matching item
-		for itemId, item := range h.items {
-			// Skip the router item itself
-			if itemId == routerId {
-				continue
-			}
-
-			// Skip items without a service
-			if item.Service == "" {
-				continue
-			}
-
-			// Check if there's a match (router name contains item name or vice versa)
-			if strings.Contains(routerId, itemId) || strings.Contains(itemId, routerId) {
-				log.Printf("Merging router '%s' URL into item '%s'", routerId, itemId)
-				// Merge the URL from the router item into the service item
-				item.Url = routerItem.Url
-				h.items[itemId] = item
-				// Remove the router item since it's been merged
-				delete(h.items, routerId)
-				break
-			}
-		}
+	if best == "" {
+		return ""
 	}
+	return h.items[best].Url
 }
 
 func (h *ConfigHandler) writeConfig() {
